@@ -1,1 +1,1 @@
-# java-websocket-demo
+# JEE websocket demo - programmatic
