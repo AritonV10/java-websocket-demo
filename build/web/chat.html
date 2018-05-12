@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+        <title>TODO supply a title</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <textarea id="chatArea" rows="10" cols="45"></textarea>
+        <input id="chatInput" type="text"><button onclick="sendMessage()">Test</button>
+        
+        <script type="text/javascript">
+            var webSocket = new WebSocket("ws://localhost:8080/Websockets/chat-endpoint");
+            var chatArea = document.getElementById("chatArea");
+            var chatInput = document.getElementById("chatInput");
+            webSocket.onmessage = function handleMessage(event){
+                var msg = JSON.parse(event.data);
+                console.log("Received " + msg);
+                if(msg !== null) chatArea.value += msg.message + " \n";
+            };    
+            function sendMessage(){
+                console.log("Sending" + chatInput.value);
+                var chat_input = {
+                    message: chatInput.value
+                };
+                webSocket.send(JSON.stringify(chat_input));
+                console.log("Sending JSON: " + JSON.stringify(chat_input));
+                chatInput.value = "";
+            };      
+            window.onbeforeunload = function(){
+                webSocket.onclose = function(){
+                    webSocket.close();
+                };
+            };
+       
+        </script>
+    </body>
+</html>
