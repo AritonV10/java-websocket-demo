@@ -1,19 +1,15 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.vio.sockets.handler;
 
-import com.vio.sockets.annotation.Handler;
-import com.vio.sockets.annotation.Service;
+import com.vio.sockets.configuration.MessageEndPoint;
 import com.vio.sockets.model.Message;
-import com.vio.sockets.sessionhandlers.SessionService;
+import com.vio.sockets.model.UserConnected;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.inject.Inject;
-import javax.inject.Named;
+import javax.websocket.EncodeException;
 import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 
@@ -25,27 +21,59 @@ import javax.websocket.Session;
 
 public class CustomMessageHandler implements MessageHandler.Whole<String> {
 
-    private Session session = null;
-    
-    @Inject @Service
-    private SessionService sessionHandler;
-    
-    public CustomMessageHandler(Session sessions){ this.session = session;}
+    private final Session session;
+    public CustomMessageHandler(Session sessions){ this.session = sessions;}
     
     /**
      *
      * @param message
      */
     @Override
-    public void onMessage(String message) {
+    public void onMessage(String message /* username as well */) {
         String username = (String) this.session.getUserProperties().get("username");
-        System.out.println(message);
         if(username == null){
             this.session.getUserProperties().put("username", message);
-            sessionHandler.sendNewUserNotification(session, message);
+            final String NEW_USER = message + " has joined the room";
+            broadcastMessage(new UserConnected(NEW_USER, "System"), session);    
         } else {
-            sessionHandler.broadcastMessage(new Message(message), this.session);
+            broadcastMessage(new Message(message, username), session);
         }
     }
+    
+    private static boolean isAvailable(String username){
+       Optional<Session> session = MessageEndPoint.CONNECTED_SESSIONS
+                .stream()
+                .filter(sessions -> sessions.getUserProperties().get("username").equals(username))
+                .findFirst();
+       
+       return session.isPresent();
+    }
+    
+    public static <T> void broadcastMessage(T message, Session session){
+        MessageEndPoint.CONNECTED_SESSIONS
+                .forEach((Session connectedSession) -> {        
+                        synchronized (connectedSession){
+                            try {
+                                connectedSession
+                                        .getBasicRemote()
+                                        .sendObject(message);
+                            } catch (IOException ex) {
+                                Logger.getLogger(CustomMessageHandler.class.getName()).log(Level.SEVERE, null, ex);
+                            } catch (EncodeException ex) {
+                                Logger.getLogger(CustomMessageHandler.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                        } 
+                });
+    }
+    
+    public static Set<String> connectedSessions(){
+        Set<String> users = new HashSet<String>();
+        MessageEndPoint
+                .CONNECTED_SESSIONS
+                .forEach(user -> users.add((String) user.getUserProperties().get("username")));
+        
+        return users;
+    }
+    
     
 }
