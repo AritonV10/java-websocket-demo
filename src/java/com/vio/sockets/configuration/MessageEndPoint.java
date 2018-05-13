@@ -1,25 +1,16 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.vio.sockets.configuration;
 
-import com.vio.sockets.sessionhandlers.SessionHandler;
-import com.vio.sockets.annotation.Handler;
-import com.vio.sockets.annotation.Service;
 import com.vio.sockets.handler.CustomMessageHandler;
-import com.vio.sockets.sessionhandlers.SessionService;
+import com.vio.sockets.model.Message;
+import com.vio.sockets.model.UserDisconnected;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.inject.Inject;
 import javax.websocket.CloseReason;
 import javax.websocket.Endpoint;
 import javax.websocket.EndpointConfig;
-import javax.websocket.RemoteEndpoint;
 import javax.websocket.Session;
 
 /**
@@ -32,15 +23,13 @@ public class MessageEndPoint extends Endpoint {
 
     private static final Logger LOG = Logger.getLogger(MessageEndPoint.class.getName());
     public static Set<Session> CONNECTED_SESSIONS = Collections.synchronizedSet(new HashSet<Session>());
-
-    
-    public MessageEndPoint(){}
-    
     @Override
     public void onOpen(Session session, EndpointConfig config) {
+        session.setMaxIdleTimeout(0);
         CONNECTED_SESSIONS.add(session);
-        LOG.log(Level.INFO, "{0} has connected", session.getId());
+        LOG.log(Level.INFO, "{0} has connected", session.getId());   
         session.addMessageHandler(new CustomMessageHandler(session));
+        
     }
 
     @Override
@@ -50,7 +39,9 @@ public class MessageEndPoint extends Endpoint {
 
     @Override
     public void onClose(Session session, CloseReason closeReason) {   
-        //sessionService.closeSession(session);
+        final String USER_DISCONNECTED = session.getUserProperties().get("username") + " has disconnected";
+       // CustomMessageHandler.broadcastMessage(new UserDisconnected(USER_DISCONNECTED, "System"), session);
+        CONNECTED_SESSIONS.remove(session);
     }
     
     public static Set<Session> getSessions(){
