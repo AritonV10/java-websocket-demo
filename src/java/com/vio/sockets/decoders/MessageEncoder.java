@@ -1,13 +1,12 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.vio.sockets.decoders;
+import com.vio.sockets.handler.CustomMessageHandler;
 import com.vio.sockets.model.Message;
 import java.io.StringWriter;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.JsonWriter;
@@ -25,17 +24,30 @@ public class MessageEncoder implements Encoder.Text<Message> {
 
     @Override
     public String encode(Message message) throws EncodeException {
-        JsonObject json = Json
-                .createObjectBuilder()
-                .add("message", message.getMessage())
-                .build();
-        StringWriter writer = new StringWriter();
-        try(JsonWriter jsonWriter = Json.createWriter(writer)) { jsonWriter.writeObject(json); }
         
-        return writer.toString();    
+        
+        JsonArrayBuilder array = Json.createArrayBuilder();
+        
+        CustomMessageHandler
+                .connectedSessions()
+                .forEach(user -> array.add(user));
+        
+        JsonArray json_array = array.build();
+        
+        JsonObjectBuilder json = Json
+                .createObjectBuilder()
+                .add("message", (message.getUsername() + ": " + message.getMessage()))
+                .add("users", json_array);
+                          
+        StringWriter writer = new StringWriter();
+        
+        try(JsonWriter jsonWriter = Json.createWriter(writer)) { jsonWriter.writeObject(json.build()); }
+        LOG.log(Level.INFO, "Encoding {0}", writer.toString());
+        
+        return writer.toString();
     }
     @Override
-    public void init(EndpointConfig config) {LOG.info("Calling the init method from MessageEncoder");}
+    public void init(EndpointConfig config) {LOG.log(Level.INFO, "Calling the init method from MessageEncoder{0}", config.getUserProperties().get("username")); }
     @Override
     public void destroy() {LOG.info("Calling the destroy method from MessageEncoder");} 
 }
